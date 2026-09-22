@@ -1,0 +1,9 @@
+.*
+*.pb.go
+
+/pkg
+
+!.gitignore
+!.dockerignore
+
+!*.template

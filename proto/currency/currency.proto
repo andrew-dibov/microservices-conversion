@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package currency;
+option go_package = "pkg/api/currency";
+
+service Currency {
+  rpc Rate(RateRequest) returns (RateResponse);
+  rpc Rates(RatesRequest) returns (RatesResponse);
+}
+
+message RateRequest {
+  string from_currency = 1;
+  string to_currency = 2;
+}
+
+message RateResponse {
+  string from_currency = 1;
+  string to_currency = 2;
+  double rate = 3;
+}
+
+message RatesRequest {
+  string base_currency = 1;
+}
+
+message RatesResponse {
+  string base_currency = 1;
+  map<string, double> rates = 2;
+}

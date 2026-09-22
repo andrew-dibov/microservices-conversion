@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package conversion;
+option go_package = "pkg/api/conversion";
+
+service Conversion {
+  rpc Convert(ConvertRequest) returns (ConvertResponse);
+}
+
+message ConvertRequest {
+  string from_currency = 1;
+  string to_currency = 2;
+  double amount = 3;
+}
+
+message ConvertResponse {
+  string from_currency = 1;
+  string to_currency = 2;
+  double amount = 3;
+  double result = 4;
+  double rate = 5;
+}
