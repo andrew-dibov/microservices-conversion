@@ -35,6 +35,9 @@ func main() {
 	}
 	defer currencyClient.Close()
 
+	redisClient := clients.NewRedisClient(&appConfig)
+	defer redisClient.Close()
+
 	/* --- --- --- */
 
 	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(4*1024*1024), grpc.MaxSendMsgSize(4*1024*1024),
@@ -44,7 +47,7 @@ func main() {
 			Timeout: appConfig.App.KeepaliveTimeout,
 		}))
 
-	conversion.RegisterConversionServer(grpcServer, servers.NewAppServer(currencyClient, appLogger))
+	conversion.RegisterConversionServer(grpcServer, servers.NewAppServer(currencyClient, redisClient, appLogger))
 
 	appListener, err := net.Listen("tcp", ":"+appConfig.App.Port)
 	if err != nil {

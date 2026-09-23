@@ -9,5 +9,6 @@ import (
 type AppServer struct {
 	conversion.UnimplementedConversionServer
 	currencyClient *clients.CurrencyClient
+	redisClient    *clients.RedisClient
 	appLogger      *loggers.AppLogger
 }

@@ -6,14 +6,16 @@ import (
 	"microservices-conversion/internal/loggers"
 	"microservices-conversion/internal/modules"
 	"microservices-conversion/pkg/api/conversion"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func NewAppServer(currencyClient *clients.CurrencyClient, appLogger *loggers.AppLogger) *AppServer {
+func NewAppServer(currencyClient *clients.CurrencyClient, redisClient *clients.RedisClient, appLogger *loggers.AppLogger) *AppServer {
 	return &AppServer{
 		currencyClient: currencyClient,
+		redisClient:    redisClient,
 		appLogger:      appLogger,
 	}
 }
@@ -58,7 +60,13 @@ func (server *AppServer) Convert(ctx context.Context, request *conversion.Conver
 
 	/* --- --- --- */
 
-	server.appLogger.Info("")
+	server.appLogger.Info("Convert completed",
+		"from_currency", request.FromCurrency,
+		"to_currency", request.ToCurrency,
+		"amount", request.Amount,
+		"result", request.Amount*rate,
+		"rate", rate,
+		"request_id", modules.GetID(ctx))
 
 	response := &conversion.ConvertResponse{
 		FromCurrency: request.FromCurrency,
@@ -86,7 +94,13 @@ func (server *AppServer) rate(ctx context.Context, fromCurrency string, toCurren
 
 	/* --- --- --- */
 
-	/* pull rate from redis */
+	if rate, ok, err := server.redisClient.Get(ctx, fromCurrency, toCurrency); err == nil {
+		if ok {
+			return rate, nil
+		}
+	} else {
+		server.appLogger.Error("Convert failed to get cache", "error", err)
+	}
 
 	/* --- --- --- */
 
@@ -100,13 +114,21 @@ func (server *AppServer) rate(ctx context.Context, fromCurrency string, toCurren
 	}
 
 	if rateResponse.Rate <= 0 {
-		server.appLogger.Error("AppServer received invalid rate", "rate", rateResponse.Rate)
+		server.appLogger.Error("AppServer received invalid rate", "rate", rateResponse.Rate,
+			"request_id", modules.GetID(ctx))
 		return 0, status.Error(codes.Internal, "AppServer received invalid rate")
 	}
 
 	/* --- --- --- */
 
-	/* push rate to redis */
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // move to config
+		defer cancel()
+
+		if err := server.redisClient.Set(ctx, fromCurrency, toCurrency, rateResponse.Rate); err != nil {
+			server.appLogger.Error("Convert failed to set cache", "error", err)
+		}
+	}()
 
 	/* --- --- --- */
 
